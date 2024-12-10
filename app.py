@@ -9,39 +9,42 @@ from langchain_google_genai import GoogleGenerativeAI
 from dotenv import load_dotenv
 load_dotenv()
 
-def init_database(user: str, password: str, host: str, port: str, database: str):
-    db=f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
-    return SQLDatabase.from_uri(db)
+cached_schema=None
 
-def get_sql_chain(db):
-    connected_db=init_database(**db)
+def init_database(user: str, password: str, host: str, port: str, database: str):
+    global cached_schema
+    db_uri=f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
+    connection=SQLDatabase.from_uri(db_uri)
+    cached_schema=connection.get_table_info()
+    return connection
+
+def get_schema(_):
+    return cached_schema
+    
+def get_sql_chain():
     template=""""
-    You are a data analyst at a music company. You are interacting with a user who is asking you questions about the company's database.
-    Based on the table schema provided below, you need to generate SQL queries to answer the user's questions. Take the conversation history into account.
-    
-    <SCHEMA>{schema}</SCHEMA>
-    
-    Conersation History: {chat_history}
-    
-    Write only the SQL Query and nothing else. Do not wrap the SQL Query in any other text, not even backticks.
-    
-    For Example:
-    Question: Which 3 artists have the most tracks?
-    SQL Query: SELECT ArtistId, COUNT(*) as track_count FROM Track GROUP BY ArtistId ORDER BY track_count DESC LIMIT 3;
-    Question: Name 10 artists from the database.
-    SQL Query: Select Name from Artist LIMIT 10;
-    
-    Your turn:
-    
-    Question: {question}
-    SQL Query:
+        You are a data analyst at a music company. You are interacting with a user who is asking you questions about the company's database.
+        Based on the table schema provided below, you need to generate SQL queries to answer the user's questions. Take the conversation history into account.
+        
+        <SCHEMA>{schema}</SCHEMA>
+        
+        Conersation History: {chat_history}
+        
+        Write only the SQL Query and nothing else. Do not wrap the SQL Query in any other text, not even backticks.
+        
+        For Example:
+        Question: Which 3 artists have the most tracks?
+        SQL Query: SELECT ArtistId, COUNT(*) as track_count FROM Track GROUP BY ArtistId ORDER BY track_count DESC LIMIT 3;
+        Question: Name 10 artists from the database.
+        SQL Query: Select Name from Artist LIMIT 10;
+        
+        Your turn:
+        
+        Question: {question}
+        SQL Query:
     """
     prompt=ChatPromptTemplate.from_template(template=template)
     llm=GoogleGenerativeAI(model="gemini-pro",api_key=os.getenv("API_KEY"))
-
-    def get_schema(_):
-        return connected_db.get_table_info()
-    
     chain=(
         RunnablePassthrough.assign(schema=get_schema)
         | prompt
@@ -50,6 +53,35 @@ def get_sql_chain(db):
     )
     return chain
 
+# def get_response(user_question: str, chat_history: list):
+#     sql_chain=get_sql_chain()
+#     template="""
+#         You are a data analyst at a music company. You are interacting with a user who is asking you questions about the company's database.
+#         Based on the table schema provided below, user question, sql query, and sql query response, you need to generate a natural language response for the user.
+#         <SCHEMA>{schema}</SCHEMA>
+        
+#         Conversation History: {chat_history}
+#         SQL Query: <SQL>{sql_query}</SQL>
+#         Question: {question}
+#         SQL Query Response: {response}
+#     """
+    
+#     prompt=ChatPromptTemplate.from_template(template=template)
+#     llm=GoogleGenerativeAI(model="gemini-pro",api_key=os.getenv("API_KEY"))
+#     def get_schema(_):
+#         return db.get_table_info()
+    
+#     chain=(
+#         RunnablePassthrough.assign(query=sql_chain).assign(
+#             schema=get_schema,
+#             response=lambda vars: db.run(vars["sql_query"]),
+#         )
+#         | prompt
+#         | llm
+#         | StrOutputParser()
+#     )
+    
+#     return chain({"question": user_question, "chat_history": chat_history})
 
 # streamlit part 
 if "chat_history" not in st.session_state:
@@ -115,7 +147,7 @@ if user_question is not None and user_question.strip()!="":
     with st.chat_message("Human"):
         st.markdown(f"👤 **You**: {user_question}")
     with st.chat_message("AI"):
-        sql_chain=get_sql_chain(st.session_state.db_settings)
+        sql_chain=get_sql_chain()
         response=sql_chain.invoke({
             "chat_history": st.session_state.chat_history,
             "question": user_question
