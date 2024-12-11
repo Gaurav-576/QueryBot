@@ -9,18 +9,19 @@ from langchain_google_genai import GoogleGenerativeAI
 from dotenv import load_dotenv
 load_dotenv()
 
-cached_schema=None
+db_connection=SQLDatabase.from_uri(f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_DATABASE')}")
+cached_schema=db_connection.get_table_info()
 
 def init_database(user: str, password: str, host: str, port: str, database: str):
     global cached_schema
+    global db_connection
     db_uri=f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
-    connection=SQLDatabase.from_uri(db_uri)
-    cached_schema=connection.get_table_info()
-    return connection
+    db_connection=SQLDatabase.from_uri(db_uri)
+    cached_schema=db_connection.get_table_info()
 
 def get_schema(_):
     return cached_schema
-    
+
 def get_sql_chain():
     template=""""
         You are a data analyst at a music company. You are interacting with a user who is asking you questions about the company's database.
@@ -53,35 +54,30 @@ def get_sql_chain():
     )
     return chain
 
-# def get_response(user_question: str, chat_history: list):
-#     sql_chain=get_sql_chain()
-#     template="""
-#         You are a data analyst at a music company. You are interacting with a user who is asking you questions about the company's database.
-#         Based on the table schema provided below, user question, sql query, and sql query response, you need to generate a natural language response for the user.
-#         <SCHEMA>{schema}</SCHEMA>
+def get_response(user_question: str, chat_history: list):
+    sql_chain=get_sql_chain()
+    template="""
+        You are a data analyst at a music company. You are interacting with a user who is asking you questions about the company's database.
+        Based on the table schema provided below, user question, sql query, and sql query response, you need to generate a natural language response for the user.
+        <SCHEMA>{schema}</SCHEMA>
         
-#         Conversation History: {chat_history}
-#         SQL Query: <SQL>{sql_query}</SQL>
-#         Question: {question}
-#         SQL Query Response: {response}
-#     """
-    
-#     prompt=ChatPromptTemplate.from_template(template=template)
-#     llm=GoogleGenerativeAI(model="gemini-pro",api_key=os.getenv("API_KEY"))
-#     def get_schema(_):
-#         return db.get_table_info()
-    
-#     chain=(
-#         RunnablePassthrough.assign(query=sql_chain).assign(
-#             schema=get_schema,
-#             response=lambda vars: db.run(vars["sql_query"]),
-#         )
-#         | prompt
-#         | llm
-#         | StrOutputParser()
-#     )
-    
-#     return chain({"question": user_question, "chat_history": chat_history})
+        Conversation History: {chat_history}
+        SQL Query: <SQL>{sql_query}</SQL>
+        Question: {question}
+        SQL Query Response: {response}
+    """
+    prompt=ChatPromptTemplate.from_template(template=template)
+    llm=GoogleGenerativeAI(model="gemini-pro",api_key=os.getenv("API_KEY"))
+    chain=(
+        RunnablePassthrough.assign(sql_query=sql_chain).assign(
+            schema=lambda _: get_schema,
+            response=lambda var: db_connection.run(var["sql_query"]),
+        )
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+    return chain.invoke({"question": user_question, "chat_history": chat_history}),sql_chain.invoke({"question": user_question, "chat_history": chat_history})
 
 # streamlit part 
 if "chat_history" not in st.session_state:
@@ -147,12 +143,9 @@ if user_question is not None and user_question.strip()!="":
     with st.chat_message("Human"):
         st.markdown(f"👤 **You**: {user_question}")
     with st.chat_message("AI"):
-        sql_chain=get_sql_chain()
-        response=sql_chain.invoke({
-            "chat_history": st.session_state.chat_history,
-            "question": user_question
-        })
+        response,query=get_response(user_question, st.session_state.chat_history)
         st.markdown(response)
+        st.code(query)
     st.session_state.chat_history.append(AIMessage(content=response))
 
 
