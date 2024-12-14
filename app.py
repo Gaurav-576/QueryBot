@@ -10,23 +10,17 @@ from langchain_huggingface import HuggingFaceEndpoint
 from dotenv import load_dotenv
 load_dotenv()
 
-# st.secrets["HUGGING_FACE_API_KEY"]=os.getenv("HUGGING_FACE_API_KEY")
-# st.secrets["DB_USER"]=os.getenv("DB_USER")
-# st.secrets["DB_PASSWORD"]=os.getenv("DB_PASSWORD")
-# st.secrets["DB_HOST"]=os.getenv("DB_HOST")
-# st.secrets["DB_PORT"]=os.getenv("DB_PORT")
-# st.secrets["DB_DATABASE"]=os.getenv("DB_DATABASE")
-# st.secrets["CA"]=os.getenv("CA")
+hf_api_key=st.secrets["LLM_API"]["HUGGING_FACE_API_KEY"]
 
 db_uri=URL.create(
     "mysql+pymysql",
-    username=st.secrets["DB_USER"],
-    password=st.secrets["DB_PASSWORD"],
-    host=st.secrets["DB_HOST"],
-    port=int(st.secrets["DB_PORT"]),
-    database=st.secrets["DB_DATABASE"],
+    username=st.secrets["DATABASE"]["DB_USER"],
+    password=st.secrets["DATABASE"]["DB_PASSWORD"],
+    host=st.secrets["DATABASE"]["DB_HOST"],
+    port=st.secrets["DATABASE"]["DB_PORT"],
+    database=st.secrets["DATABASE"]["DB_DATABASE"],
     query={
-        "ssl_ca": st.secrets["CA"]
+        "ssl_ca": st.secrets["DATABASE"]["CA"]
     }
 )
 db_connection=SQLDatabase.from_uri(db_uri)
@@ -66,7 +60,7 @@ def get_sql_chain():
     """
     prompt=ChatPromptTemplate.from_template(template=template)
     repo_id="mistralai/Mistral-7B-Instruct-v0.2"
-    llm=HuggingFaceEndpoint(repo_id=repo_id,temperature=0.1,huggingfacehub_api_token=os.getenv("HUGGING_FACE_API_KEY"))
+    llm=HuggingFaceEndpoint(repo_id=repo_id,temperature=0.1,huggingfacehub_api_token=hf_api_key)
     chain=(
         RunnablePassthrough.assign(schema=get_schema)
         | prompt
@@ -89,7 +83,7 @@ def get_response(user_question: str, chat_history: list):
     """
     prompt=ChatPromptTemplate.from_template(template=template)
     repo_id="mistralai/Mistral-7B-Instruct-v0.2"
-    llm=HuggingFaceEndpoint(repo_id=repo_id,temperature=0.1,huggingfacehub_api_token=os.getenv("HUGGING_FACE_API_KEY"))
+    llm=HuggingFaceEndpoint(repo_id=repo_id,temperature=0.1,huggingfacehub_api_token=hf_api_key)
     chain=(
         RunnablePassthrough.assign(sql_query=sql_chain).assign(
             schema=lambda _: get_schema,
