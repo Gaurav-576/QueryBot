@@ -70,35 +70,43 @@ def get_sql_chain():
     return chain
 
 def get_response(user_question: str, chat_history: list):
-    sql_chain=get_sql_chain()
-    template="""
-        You are a data analyst at a music company. You are interacting with a user who is asking you questions about the company's database.
-        Based on the table schema provided below, user question, sql query, and sql query response, you need to generate a natural language response for the user.
-        <SCHEMA>{schema}</SCHEMA>
-        
-        Conversation History: {chat_history}
-        SQL Query: <SQL>{sql_query}</SQL>
-        Question: {question}
-        SQL Query Response: {response}
-    """
-    prompt=ChatPromptTemplate.from_template(template=template)
-    repo_id="mistralai/Mistral-7B-Instruct-v0.2"
-    llm=HuggingFaceEndpoint(repo_id=repo_id,temperature=0.1,huggingfacehub_api_token=hf_api_key)
-    chain=(
-        RunnablePassthrough.assign(sql_query=sql_chain).assign(
-            schema=lambda _: get_schema,
-            response=lambda var: db_connection.run(var["sql_query"]),
+    try:
+        sql_chain=get_sql_chain()
+        template="""
+            You are a data analyst at a music company. You are interacting with a user who is asking you questions about the company's database.
+            Based on the table schema provided below, user question, sql query, and sql query response, you need to generate a natural language response for the user.
+            <SCHEMA>{schema}</SCHEMA>
+            
+            Conversation History: {chat_history}
+            SQL Query: <SQL>{sql_query}</SQL>
+            Question: {question}
+            SQL Query Response: {response}
+        """
+        prompt=ChatPromptTemplate.from_template(template=template)
+        repo_id="mistralai/Mistral-7B-Instruct-v0.2"
+        llm=HuggingFaceEndpoint(repo_id=repo_id,temperature=0.1,huggingfacehub_api_token=hf_api_key)
+        def execute_sql(query):
+            try:
+                return db_connection.run(query)
+            except Exception as db_error:
+                return f"SQL execution error: {db_error}"
+        chain=(
+            RunnablePassthrough.assign(sql_query=sql_chain).assign(
+                schema=lambda _: get_schema,
+                response=lambda var: execute_sql(var["sql_query"]),
+            )
+            | prompt
+            | llm
+            | StrOutputParser()
         )
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-    return chain.invoke({"question": user_question, "chat_history": chat_history}),sql_chain.invoke({"question": user_question, "chat_history": chat_history})
+        return chain.invoke({"question": user_question, "chat_history": chat_history}),sql_chain.invoke({"question": user_question, "chat_history": chat_history})
+    except Exception as e:
+        return f"An error occurred while running the SQL query. Error: {e}",sql_chain.invoke({"question": user_question, "chat_history": chat_history})
 
 # streamlit part 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history=[
-        AIMessage("Hello! I am a SQL Query Generator bot. How can I help you today?"),
+        AIMessage("What can I query for you today?"),
     ]
     
 if "db_settings" not in st.session_state:
@@ -113,12 +121,11 @@ if "sidebar_visible" not in st.session_state:
     st.session_state.sidebar_visible=False
 
 st.set_page_config(page_title="SQL Query Generator", page_icon=":robot:")
-st.title("🔍 SQL Query Generator")
+st.title("🔍 QueryBot")
 st.markdown(
     """
-    **Welcome to the SQL Query Generator!**  
-    Easily convert your questions about your database into executable SQL queries.
-    _Powered by Google-Gemini-AI and LangChain._
+    **Hello, User! 🚀 I'm QueryBot - Your Smart SQL Query Generator AI Assistant! 🤖**\n
+    _Built on the power of Mistral's 7B LLM model and Langchain framework_
     """
 )
 with st.sidebar:
@@ -161,129 +168,9 @@ if user_question is not None and user_question.strip()!="":
     with st.chat_message("AI"):
         response,query=get_response(user_question, st.session_state.chat_history)
         st.markdown(response)
+        st.markdown(
+    '<div style="font-size:16px; color:#2E86C1; font-weight:bold;">🚀 Your Custom SQL Query:</div>', 
+    unsafe_allow_html=True
+)
         st.code(query)
     st.session_state.chat_history.append(AIMessage(content=response))
-
-
-
-
-
-# def wrap_text(text, width=35):
-#     return '\n'.join(textwrap.wrap(text, width))
-
-# if st.button("💡 Generate SQL Query"):
-#     if question:
-#         with st.spinner("Generating SQL Query... Please wait!"):
-#             sql_query, db_response = chain(question)  # Assuming chain() function exists for query generation
-#             if sql_query:
-#                 st.success("✅ SQL Query Generated!")
-#                 wrapped_sql_query = wrap_text(sql_query, width=35)
-#                 col1, col2 = st.columns([1, 1])
-#                 # Left column: SQL query
-#                 with col1:
-#                     st.markdown("### 🧾 Generated SQL Query")
-#                     st.code(wrapped_sql_query, language="sql")
-#                 # Right column: Database response
-#                 with col2:
-#                     if db_response is not None:
-#                         st.markdown("### 📊 Database Response")
-#                         st.markdown(db_response)
-#                     else:
-#                         st.markdown("### 📊 Database Response")
-#                         st.error("⚠️ No result obtained from the database. Please re-check your query.")
-#             else:
-#                 st.error("⚠️ Failed to generate SQL query. Please re-check your question.")
-#     else:
-#         st.warning("⚠️ Please enter a question to generate the SQL query.")
-
-# # Footer with Help and GitHub Link
-# st.markdown("---")
-# st.markdown(
-#     """
-#     **Need Help?**  
-#     For any issues, feel free to raise an issue at [Github](https://github.com/Gaurav-576/QueryBot).
-#     _Happy Querying!_
-#     """
-# )
-
-# # Custom CSS for better UI (Optional)
-# st.markdown(
-#     """
-#     <style>
-#         body {
-#             font-family: 'Roboto', sans-serif;
-#             background-color: #f4f7fa;
-#             color: #333;
-#         }
-
-#         h1 {
-#             color: #4a90e2;
-#             text-align: center;
-#             font-size: 2.5rem;
-#         }
-
-#         h3 {
-#             color: #6c757d;
-#             font-size: 1.5rem;
-#         }
-
-#         .description {
-#             background-color: #f1f3f5;
-#             padding: 20px;
-#             border-radius: 8px;
-#             margin-bottom: 30px;
-#         }
-
-#         .stTextInput input {
-#             background-color: #ffffff;
-#             color: #333;  /* Set text color to black */
-#             padding: 12px;
-#             border-radius: 8px;
-#             border: 1px solid #ddd;
-#             font-size: 1rem;
-#         }
-
-#         .stButton>button {
-#             background-color: #4a90e2;
-#             color: white;
-#             font-weight: bold;
-#             border-radius: 5px;
-#             padding: 10px 15px;
-#             cursor: pointer;
-#         }
-
-#         .stButton>button:hover {
-#             background-color: #357ab8;
-#         }
-
-#         .stTextInput>div>label {
-#             font-size: 1rem;
-#             color: #6c757d;
-#         }
-
-#         .stCode block {
-#             background-color: #f8f9fa;
-#             padding: 15px;
-#             border-radius: 8px;
-#             font-size: 1rem;
-#             color: #343a40;
-#         }
-
-#         .stTextInput input:focus {
-#             outline: 2px solid #4a90e2;
-#         }
-
-#         .stAlert {
-#             margin-bottom: 15px;
-#         }
-
-#         .footer {
-#             font-size: 1rem;
-#             text-align: center;
-#             margin-top: 40px;
-#             color: #6c757d;
-#         }
-#     </style>
-#     """,
-#     unsafe_allow_html=True
-# )
