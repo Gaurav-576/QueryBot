@@ -10,15 +10,23 @@ from langchain_huggingface import HuggingFaceEndpoint
 from dotenv import load_dotenv
 load_dotenv()
 
+# st.secrets["HUGGING_FACE_API_KEY"]=os.getenv("HUGGING_FACE_API_KEY")
+# st.secrets["DB_USER"]=os.getenv("DB_USER")
+# st.secrets["DB_PASSWORD"]=os.getenv("DB_PASSWORD")
+# st.secrets["DB_HOST"]=os.getenv("DB_HOST")
+# st.secrets["DB_PORT"]=os.getenv("DB_PORT")
+# st.secrets["DB_DATABASE"]=os.getenv("DB_DATABASE")
+# st.secrets["CA"]=os.getenv("CA")
+
 db_uri=URL.create(
     "mysql+pymysql",
-    username=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    host=os.getenv("DB_HOST"),
-    port=int(os.getenv("DB_PORT")),
-    database=os.getenv("DB_DATABASE"),
+    username=st.secrets["DB_USER"],
+    password=st.secrets["DB_PASSWORD"],
+    host=st.secrets["DB_HOST"],
+    port=int(st.secrets["DB_PORT"]),
+    database=st.secrets["DB_DATABASE"],
     query={
-        "ssl_ca": os.getenv("CA")
+        "ssl_ca": st.secrets["CA"]
     }
 )
 db_connection=SQLDatabase.from_uri(db_uri)
