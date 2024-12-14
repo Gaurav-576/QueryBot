@@ -1,15 +1,27 @@
 import os
 import streamlit as st
+from sqlalchemy.engine.url import URL
 from langchain_community.utilities import SQLDatabase
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain_google_genai import GoogleGenerativeAI
+from langchain_huggingface import HuggingFaceEndpoint
 from dotenv import load_dotenv
 load_dotenv()
 
-db_connection=SQLDatabase.from_uri(f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_DATABASE')}")
+db_uri=URL.create(
+    "mysql+pymysql",
+    username=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    host=os.getenv("DB_HOST"),
+    port=int(os.getenv("DB_PORT")),
+    database=os.getenv("DB_DATABASE"),
+    query={
+        "ssl_ca": os.getenv("CA")
+    }
+)
+db_connection=SQLDatabase.from_uri(db_uri)
 cached_schema=db_connection.get_table_info()
 
 def init_database(user: str, password: str, host: str, port: str, database: str):
@@ -45,7 +57,8 @@ def get_sql_chain():
         SQL Query:
     """
     prompt=ChatPromptTemplate.from_template(template=template)
-    llm=GoogleGenerativeAI(model="gemini-pro",api_key=os.getenv("API_KEY"))
+    repo_id="mistralai/Mistral-7B-Instruct-v0.2"
+    llm=HuggingFaceEndpoint(repo_id=repo_id,temperature=0.1,huggingfacehub_api_token=os.getenv("HUGGING_FACE_API_KEY"))
     chain=(
         RunnablePassthrough.assign(schema=get_schema)
         | prompt
@@ -67,7 +80,8 @@ def get_response(user_question: str, chat_history: list):
         SQL Query Response: {response}
     """
     prompt=ChatPromptTemplate.from_template(template=template)
-    llm=GoogleGenerativeAI(model="gemini-pro",api_key=os.getenv("API_KEY"))
+    repo_id="mistralai/Mistral-7B-Instruct-v0.2"
+    llm=HuggingFaceEndpoint(repo_id=repo_id,temperature=0.1,huggingfacehub_api_token=os.getenv("HUGGING_FACE_API_KEY"))
     chain=(
         RunnablePassthrough.assign(sql_query=sql_chain).assign(
             schema=lambda _: get_schema,

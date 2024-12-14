@@ -1,0 +1,8 @@
+python-dotenv
+streamlit
+sqlalchemy
+langchain
+langchain-core
+langchain-community
+langchain-huggingface
+pymysql
