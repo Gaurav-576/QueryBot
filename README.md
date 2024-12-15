@@ -2,6 +2,28 @@
 
 **QueryBot** is a cutting-edge generative AI chatbot built using **LangChain** and **Mistral AI**, designed to translate natural language into SQL queries seamlessly. It empowers users, even those with no prior knowledge of SQL databases, to interact with and retrieve data effortlessly. Leveraging LangChain’s integration capabilities and Mistral AI’s high-performance models, it ensures efficient, secure database interaction in both local and production environments.
 
+---
+## 🌐 Explore QueryBot Live
+
+Check out the live version of QueryBot:  
+👉 **[QueryBot Live Website](https://querybot-sql-chatbot.streamlit.app/)**
+
+Experience QueryBot's seamless natural language to SQL query transformation directly in your browser!
+
+---
+
+## 🖼️ QueryBot in Action
+
+### User Interface
+Here is a screenshot of QueryBot's intuitive interface, where users can type natural language queries and get SQL outputs instantly:
+
+![QueryBot Interface](./images/querybot_interface.png)
+
+### Example Query and Response
+Below is an example of how QueryBot processes a natural language query and provides an SQL query in response:
+
+![QueryBot Response](./images/query_generated.png)
+
 ## 🌟 **Key Features**
 
   1. **Innovative LangChain Integration:**
@@ -221,4 +243,5 @@ This project is licensed under the [MIT License](LICENSE).
 
 Developed by **[Gaurav Kumar Singh]**  
 👔 [LinkedIn](https://www.linkedin.com/in/gaurav-singh-mlops/) | 📦 [GitHub](https://github.com/Gaurav-576) | 🐦 [Twitter](https://twitter.com/Gaurav96753)
+
 ---
