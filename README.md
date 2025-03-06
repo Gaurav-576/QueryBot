@@ -17,12 +17,12 @@ Experience QueryBot's seamless natural language to SQL query transformation dire
 ### User Interface
 Here is a screenshot of QueryBot's intuitive interface, where users can type natural language queries and get SQL outputs instantly:
 
-![QueryBot Interface](./images/querybot_interface.png)
+![QueryBot Interface](/images/querybot_interface.jpg)
 
 ### Example Query and Response
 Below is an example of how QueryBot processes a natural language query and provides an SQL query in response:
 
-![QueryBot Response](./images/query_generated.png)
+![QueryBot Response](./images/query_generated.jpg)
 
 ## 🌟 **Key Features**
 
