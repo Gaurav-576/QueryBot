@@ -6,7 +6,7 @@
 ## 🌐 Explore QueryBot Live
 
 Check out the live version of QueryBot:  
-👉 **[QueryBot Live Website](https://querybot-sql-chatbot.streamlit.app/)**
+👉 **[QueryBot Live Website](https://querybot-sql-db-chatbot.streamlit.app/)**
 
 Experience QueryBot's seamless natural language to SQL query transformation directly in your browser!
 
